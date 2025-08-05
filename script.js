@@ -29,6 +29,7 @@ class OutlineASCIIConverter {
         this.noiseReduction = document.getElementById('noiseReduction');
         this.noiseValue = document.getElementById('noiseValue');
         this.invertColors = document.getElementById('invertColors');
+        this.autoOptimize = document.getElementById('autoOptimize');
     }
 
     bindEvents() {
@@ -132,8 +133,6 @@ class OutlineASCIIConverter {
         if (!this.currentImage) return;
 
         try {
-            this.showLoading('正在分析图像轮廓...');
-
             // 创建canvas处理图片
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
@@ -150,16 +149,27 @@ class OutlineASCIIConverter {
             // 获取图像数据
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             
-            this.showLoading('正在进行边缘检测...');
+            let bestParams = {
+                edgeThreshold: parseInt(this.edgeThreshold.value),
+                noiseReduction: parseInt(this.noiseReduction.value)
+            };
             
-            // 进行图像预处理和边缘检测
-            const processedData = this.preprocessImage(imageData);
-            const edgeData = this.detectEdges(processedData, canvas.width, canvas.height);
+            // 如果启用自动优化，寻找最佳参数
+            if (this.autoOptimize.checked) {
+                this.showLoading('正在分析图像特征...');
+                bestParams = await this.findOptimalParameters(imageData, canvas.width, canvas.height);
+                
+                // 更新UI显示最佳参数
+                this.edgeThreshold.value = bestParams.edgeThreshold;
+                this.thresholdValue.textContent = bestParams.edgeThreshold;
+                this.noiseReduction.value = bestParams.noiseReduction;
+                this.noiseValue.textContent = bestParams.noiseReduction;
+            }
             
             this.showLoading('正在生成ASCII艺术...');
             
-            // 转换为ASCII
-            const asciiResult = this.generateASCIIFromEdges(edgeData, canvas.width, canvas.height);
+            // 使用最佳参数生成ASCII
+            const asciiResult = this.generateOptimizedASCII(imageData, canvas.width, canvas.height, bestParams);
             
             this.showResult(asciiResult);
 
@@ -170,27 +180,6 @@ class OutlineASCIIConverter {
         }
     }
 
-    preprocessImage(imageData) {
-        const data = new Uint8ClampedArray(imageData.data);
-        const width = imageData.width;
-        const height = imageData.height;
-        const noiseLevel = parseInt(this.noiseReduction.value);
-        
-        // 转换为灰度图
-        for (let i = 0; i < data.length; i += 4) {
-            const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-            data[i] = gray;     // R
-            data[i + 1] = gray; // G
-            data[i + 2] = gray; // B
-        }
-        
-        // 噪音过滤 - 高斯模糊
-        if (noiseLevel > 0) {
-            this.applyGaussianBlur(data, width, height, noiseLevel);
-        }
-        
-        return data;
-    }
 
     applyGaussianBlur(data, width, height, radius) {
         const output = new Uint8ClampedArray(data);
@@ -245,8 +234,127 @@ class OutlineASCIIConverter {
         return kernel;
     }
 
-    detectEdges(data, width, height) {
-        const threshold = parseInt(this.edgeThreshold.value);
+
+    // 自动寻找最佳参数
+    async findOptimalParameters(imageData, width, height) {
+        const data = new Uint8ClampedArray(imageData.data);
+        
+        // 分析图像特征
+        const imageStats = this.analyzeImageFeatures(data, width, height);
+        
+        // 基于图像特征确定最佳参数
+        let bestEdgeThreshold, bestNoiseReduction;
+        
+        // 根据图像对比度调整边缘检测阈值
+        if (imageStats.contrast < 0.3) {
+            bestEdgeThreshold = 60; // 低对比度图像使用较低阈值
+        } else if (imageStats.contrast > 0.7) {
+            bestEdgeThreshold = 120; // 高对比度图像使用较高阈值
+        } else {
+            bestEdgeThreshold = 80; // 中等对比度使用默认值
+        }
+        
+        // 根据图像噪音水平调整过滤强度
+        if (imageStats.noiseLevel > 0.6) {
+            bestNoiseReduction = 5; // 高噪音图像需要更强过滤
+        } else if (imageStats.noiseLevel < 0.3) {
+            bestNoiseReduction = 1; // 低噪音图像使用轻微过滤
+        } else {
+            bestNoiseReduction = 3; // 中等噪音使用默认值
+        }
+        
+        return {
+            edgeThreshold: bestEdgeThreshold,
+            noiseReduction: bestNoiseReduction
+        };
+    }
+
+    // 分析图像特征
+    analyzeImageFeatures(data, width, height) {
+        let totalBrightness = 0;
+        let minBrightness = 255;
+        let maxBrightness = 0;
+        let gradientSum = 0;
+        let totalPixels = width * height;
+        
+        // 转换为灰度并计算统计信息
+        const grayData = new Uint8ClampedArray(totalPixels);
+        for (let i = 0; i < data.length; i += 4) {
+            const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+            const pixelIndex = i / 4;
+            grayData[pixelIndex] = gray;
+            
+            totalBrightness += gray;
+            minBrightness = Math.min(minBrightness, gray);
+            maxBrightness = Math.max(maxBrightness, gray);
+        }
+        
+        // 计算对比度
+        const avgBrightness = totalBrightness / totalPixels;
+        const contrast = (maxBrightness - minBrightness) / 255;
+        
+        // 计算噪音水平（通过局部梯度变化）
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                const center = grayData[y * width + x];
+                const neighbors = [
+                    grayData[(y-1) * width + x],
+                    grayData[(y+1) * width + x],
+                    grayData[y * width + (x-1)],
+                    grayData[y * width + (x+1)]
+                ];
+                
+                let localVariance = 0;
+                neighbors.forEach(neighbor => {
+                    localVariance += Math.pow(neighbor - center, 2);
+                });
+                gradientSum += Math.sqrt(localVariance / 4);
+            }
+        }
+        
+        const noiseLevel = (gradientSum / (totalPixels * 255)) * 2; // 归一化噪音水平
+        
+        return {
+            avgBrightness: avgBrightness / 255,
+            contrast: contrast,
+            noiseLevel: Math.min(noiseLevel, 1) // 限制在0-1范围
+        };
+    }
+
+    // 优化的ASCII生成算法
+    generateOptimizedASCII(imageData, width, height, params) {
+        const data = new Uint8ClampedArray(imageData.data);
+        
+        // 预处理图像
+        const processedData = this.preprocessImageWithParams(data, width, height, params.noiseReduction);
+        
+        // 检测边缘
+        const edgeData = this.detectEdgesWithParams(processedData, width, height, params.edgeThreshold);
+        
+        // 生成更好的ASCII艺术
+        return this.generateEnhancedASCII(processedData, edgeData, width, height);
+    }
+
+    // 带参数的预处理
+    preprocessImageWithParams(data, width, height, noiseLevel) {
+        // 转换为灰度图
+        for (let i = 0; i < data.length; i += 4) {
+            const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+            data[i] = gray;     // R
+            data[i + 1] = gray; // G
+            data[i + 2] = gray; // B
+        }
+        
+        // 应用适度的高斯模糊
+        if (noiseLevel > 0) {
+            this.applyGaussianBlur(data, width, height, noiseLevel);
+        }
+        
+        return data;
+    }
+
+    // 带参数的边缘检测
+    detectEdgesWithParams(data, width, height, threshold) {
         const edges = new Uint8ClampedArray(width * height);
         
         // Sobel边缘检测
@@ -257,7 +365,6 @@ class OutlineASCIIConverter {
             for (let x = 1; x < width - 1; x++) {
                 let gx = 0, gy = 0;
                 
-                // 应用Sobel算子
                 for (let ky = -1; ky <= 1; ky++) {
                     for (let kx = -1; kx <= 1; kx++) {
                         const pixel = data[((y + ky) * width + (x + kx)) * 4];
@@ -266,95 +373,41 @@ class OutlineASCIIConverter {
                     }
                 }
                 
-                // 计算梯度强度
                 const magnitude = Math.sqrt(gx * gx + gy * gy);
                 edges[y * width + x] = magnitude > threshold ? 255 : 0;
             }
         }
         
-        // 应用形态学操作来清理边缘
-        return this.morphologicalOperations(edges, width, height);
+        return edges;
     }
 
-    morphologicalOperations(edges, width, height) {
-        // 先腐蚀后膨胀，去除噪点
-        let result = this.erode(edges, width, height);
-        result = this.dilate(result, width, height);
-        return result;
-    }
-
-    erode(data, width, height) {
-        const result = new Uint8ClampedArray(width * height);
-        const kernel = [
-            [-1, -1], [-1, 0], [-1, 1],
-            [0, -1],  [0, 0],  [0, 1],
-            [1, -1],  [1, 0],  [1, 1]
-        ];
-        
-        for (let y = 1; y < height - 1; y++) {
-            for (let x = 1; x < width - 1; x++) {
-                let minVal = 255;
-                for (let [ky, kx] of kernel) {
-                    const px = x + kx;
-                    const py = y + ky;
-                    if (px >= 0 && px < width && py >= 0 && py < height) {
-                        minVal = Math.min(minVal, data[py * width + px]);
-                    }
-                }
-                result[y * width + x] = minVal;
-            }
-        }
-        
-        return result;
-    }
-
-    dilate(data, width, height) {
-        const result = new Uint8ClampedArray(width * height);
-        const kernel = [
-            [-1, -1], [-1, 0], [-1, 1],
-            [0, -1],  [0, 0],  [0, 1],
-            [1, -1],  [1, 0],  [1, 1]
-        ];
-        
-        for (let y = 1; y < height - 1; y++) {
-            for (let x = 1; x < width - 1; x++) {
-                let maxVal = 0;
-                for (let [ky, kx] of kernel) {
-                    const px = x + kx;
-                    const py = y + ky;
-                    if (px >= 0 && px < width && py >= 0 && py < height) {
-                        maxVal = Math.max(maxVal, data[py * width + px]);
-                    }
-                }
-                result[y * width + x] = maxVal;
-            }
-        }
-        
-        return result;
-    }
-
-    generateASCIIFromEdges(edgeData, width, height) {
-        // 不同强度的ASCII字符集
-        const edgeChars = '█▉▊▋▌▍▎▏';  // 块状字符表示强边缘
-        const fillChars = '@%#*+=-:. '; // 填充字符表示内部区域
+    // 增强的ASCII生成算法
+    generateEnhancedASCII(grayData, edgeData, width, height) {
+        // 优化的字符集 - 更好的渐变效果
+        const chars = ' .\'`^",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$';
+        const edgeChars = '█▉▊▋▌▍▎▏';
         const invert = this.invertColors.checked;
         
         let ascii = '';
         
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
-                const edgeStrength = edgeData[y * width + x];
+                const pixelIndex = y * width + x;
+                const grayValue = grayData[pixelIndex * 4];
+                const edgeValue = edgeData[pixelIndex];
+                
                 let char;
                 
-                if (edgeStrength > 128) {
-                    // 强边缘区域 - 使用块状字符
-                    const charIndex = Math.floor((edgeStrength / 255) * (edgeChars.length - 1));
+                if (edgeValue > 128) {
+                    // 强边缘区域使用边缘字符
+                    const intensity = edgeValue / 255;
+                    const charIndex = Math.floor(intensity * (edgeChars.length - 1));
                     char = edgeChars[invert ? edgeChars.length - 1 - charIndex : charIndex];
                 } else {
-                    // 内部区域 - 根据周围边缘密度选择填充字符
-                    const density = this.calculateLocalDensity(edgeData, x, y, width, height);
-                    const charIndex = Math.floor(density * (fillChars.length - 1));
-                    char = fillChars[invert ? fillChars.length - 1 - charIndex : charIndex];
+                    // 非边缘区域使用灰度映射
+                    const intensity = grayValue / 255;
+                    const charIndex = Math.floor(intensity * (chars.length - 1));
+                    char = chars[invert ? chars.length - 1 - charIndex : charIndex];
                 }
                 
                 ascii += char;
@@ -363,26 +416,6 @@ class OutlineASCIIConverter {
         }
         
         return ascii;
-    }
-
-    calculateLocalDensity(edgeData, x, y, width, height) {
-        let sum = 0;
-        let count = 0;
-        const radius = 2;
-        
-        for (let dy = -radius; dy <= radius; dy++) {
-            for (let dx = -radius; dx <= radius; dx++) {
-                const px = x + dx;
-                const py = y + dy;
-                
-                if (px >= 0 && px < width && py >= 0 && py < height) {
-                    sum += edgeData[py * width + px];
-                    count++;
-                }
-            }
-        }
-        
-        return count > 0 ? (sum / count) / 255 : 0;
     }
 
     showResult(asciiArt) {
@@ -442,12 +475,15 @@ class OutlineASCIIConverter {
     }
 
     reset() {
-        this.currentImage = null;
-        this.imageInput.value = '';
-        this.previewSection.style.display = 'none';
+        // 只重置结果区域，保留图片预览
         this.loadingSection.style.display = 'none';
         this.resultSection.style.display = 'none';
         this.asciiOutput.textContent = '';
+        
+        // 如果有图片，保持预览状态可见
+        if (this.currentImage) {
+            this.previewSection.style.display = 'block';
+        }
     }
 }
 
