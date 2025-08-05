@@ -33,7 +33,9 @@ class I18n {
                 recognized_text: '--- 识别的文字 ---',
                 no_text_found: '--- 未识别到文字 ---',
                 text_recognition_failed: '--- 文字识别失败 ---',
-                image_to_ascii: '--- 图像转ASCII ---'
+                image_to_ascii: '--- 图像转ASCII ---',
+                width_adjusted: '智能调整宽度',
+                image_size: '图片尺寸'
             },
             en: {
                 title: '🎨 Smart ASCII Art',
@@ -65,7 +67,9 @@ class I18n {
                 recognized_text: '--- Recognized Text ---',
                 no_text_found: '--- No Text Found ---',
                 text_recognition_failed: '--- Text Recognition Failed ---',
-                image_to_ascii: '--- Image to ASCII ---'
+                image_to_ascii: '--- Image to ASCII ---',
+                width_adjusted: 'Width Auto-Adjusted',
+                image_size: 'Image Size'
             },
             ja: {
                 title: '🎨 スマートASCIIアート',
@@ -97,7 +101,9 @@ class I18n {
                 recognized_text: '--- 認識されたテキスト ---',
                 no_text_found: '--- テキストが見つかりません ---',
                 text_recognition_failed: '--- テキスト認識に失敗しました ---',
-                image_to_ascii: '--- 画像からASCIIへ ---'
+                image_to_ascii: '--- 画像からASCIIへ ---',
+                width_adjusted: '幅を自動調整',
+                image_size: '画像サイズ'
             }
         };
     }
@@ -250,6 +256,75 @@ class OutlineASCIIConverter {
         this.previewImage.src = imageSrc;
         this.previewSection.style.display = 'block';
         this.resultSection.style.display = 'none';
+        
+        // 根据图片大小智能调整ASCII宽度
+        this.adjustASCIIWidthByImageSize();
+    }
+
+    adjustASCIIWidthByImageSize() {
+        if (!this.currentImage) return;
+        
+        const imageWidth = this.currentImage.naturalWidth;
+        const imageHeight = this.currentImage.naturalHeight;
+        
+        // 计算建议的ASCII宽度
+        let suggestedWidth;
+        
+        if (imageWidth <= 400) {
+            // 小图片：使用较小的ASCII宽度
+            suggestedWidth = 80;
+        } else if (imageWidth <= 800) {
+            // 中等图片：使用中等ASCII宽度
+            suggestedWidth = 150;
+        } else if (imageWidth <= 1200) {
+            // 大图片：使用较大ASCII宽度
+            suggestedWidth = 220;
+        } else if (imageWidth <= 2000) {
+            // 超大图片：使用很大ASCII宽度
+            suggestedWidth = 300;
+        } else {
+            // 极大图片：使用最大ASCII宽度
+            suggestedWidth = 360;
+        }
+        
+        // 考虑图片的宽高比
+        const aspectRatio = imageWidth / imageHeight;
+        if (aspectRatio > 2) {
+            // 宽图片：增加宽度
+            suggestedWidth = Math.min(360, Math.round(suggestedWidth * 1.2));
+        } else if (aspectRatio < 0.5) {
+            // 高图片：减少宽度
+            suggestedWidth = Math.max(80, Math.round(suggestedWidth * 0.8));
+        }
+        
+        // 更新UI
+        this.asciiWidth.value = suggestedWidth;
+        this.widthValue.textContent = suggestedWidth;
+        
+        // 显示智能调整提示
+        this.showWidthAdjustmentNotice(imageWidth, imageHeight, suggestedWidth);
+    }
+
+    showWidthAdjustmentNotice(imageWidth, imageHeight, suggestedWidth) {
+        // 创建临时提示信息
+        const notice = document.createElement('div');
+        notice.className = 'width-adjustment-notice';
+        notice.innerHTML = `
+            <div class="notice-content">
+                <span class="notice-icon">🎯</span>
+                <span class="notice-text">${this.i18n.t('width_adjusted')}: ${suggestedWidth}</span>
+                <span class="notice-detail">${this.i18n.t('image_size')}: ${imageWidth}×${imageHeight}</span>
+            </div>
+        `;
+        
+        document.body.appendChild(notice);
+        
+        // 3秒后自动移除
+        setTimeout(() => {
+            if (document.body.contains(notice)) {
+                document.body.removeChild(notice);
+            }
+        }, 3000);
     }
 
     showLoading(message = null) {

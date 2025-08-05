@@ -331,6 +331,19 @@ footer {
     .ascii-result pre {
         font-size: 0.3em;
     }
+    
+    .width-adjustment-notice {
+        top: 60px;
+        right: 10px;
+        left: 10px;
+        padding: 10px 15px;
+    }
+    
+    .notice-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
 }
 
 /* 自定义滚动条 */
@@ -365,6 +378,41 @@ footer {
     font-weight: 600;
     z-index: 1000;
     animation: slideIn 0.3s ease;
+}
+
+/* 宽度调整提示 */
+.width-adjustment-notice {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    background: #667eea;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    z-index: 1000;
+    animation: slideIn 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.notice-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.notice-icon {
+    font-size: 1.2em;
+}
+
+.notice-text {
+    font-size: 1em;
+}
+
+.notice-detail {
+    font-size: 0.9em;
+    opacity: 0.9;
+    margin-left: 4px;
 }
 
 @keyframes slideIn {
