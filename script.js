@@ -857,25 +857,22 @@ class OutlineASCIIConverter {
     }
 
     reset() {
-        // 完全重置到初始状态
-        this.currentImage = null;
-        this.imageInput.value = '';
-        this.previewImage.style.display = 'none';
-        this.placeholderPreview.style.display = 'block';
+        // 只重置结果区域，保留图片预览状态
         this.loadingSection.style.display = 'none';
         this.resultSection.style.display = 'none';
         this.asciiOutput.textContent = '';
         
-        // 重置到默认参数
-        this.asciiWidth.value = 120;
-        this.widthValue.textContent = '120';
-        this.edgeThreshold.value = 100;
-        this.thresholdValue.textContent = '100';
-        this.noiseReduction.value = 3;
-        this.noiseValue.textContent = '3';
+        // 清空canvas
+        if (this.asciiCanvas) {
+            const ctx = this.asciiCanvas.getContext('2d');
+            ctx.clearRect(0, 0, this.asciiCanvas.width, this.asciiCanvas.height);
+        }
         
         // 切换回文字版tab
         this.switchTab('text');
+        
+        // 如果有图片，保持预览状态
+        // 不重置参数，让用户保持当前调整的设置
     }
 }
 
