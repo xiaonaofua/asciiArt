@@ -365,7 +365,8 @@ class OutlineASCIIConverter {
     showLoading(message = null) {
         this.loadingText.textContent = message || this.i18n.t('processing');
         this.loadingSection.style.display = 'block';
-        this.previewSection.style.display = 'none';
+        // 保持预览区域始终可见
+        // this.previewSection.style.display = 'none';
         this.resultSection.style.display = 'none';
     }
 
@@ -857,7 +858,7 @@ class OutlineASCIIConverter {
     }
 
     reset() {
-        // 只重置结果区域，保留图片预览状态
+        // 重置结果区域
         this.loadingSection.style.display = 'none';
         this.resultSection.style.display = 'none';
         this.asciiOutput.textContent = '';
@@ -871,7 +872,19 @@ class OutlineASCIIConverter {
         // 切换回文字版tab
         this.switchTab('text');
         
-        // 如果有图片，保持预览状态
+        // 确保预览区域始终可见
+        this.previewSection.style.display = 'block';
+        
+        // 如果有图片，确保预览图片显示，隐藏占位符
+        if (this.currentImage && this.previewImage.src) {
+            this.previewImage.style.display = 'block';
+            this.placeholderPreview.style.display = 'none';
+        } else {
+            // 如果没有图片，显示占位符
+            this.previewImage.style.display = 'none';
+            this.placeholderPreview.style.display = 'block';
+        }
+        
         // 不重置参数，让用户保持当前调整的设置
     }
 }
