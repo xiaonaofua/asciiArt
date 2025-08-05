@@ -30,10 +30,16 @@
             </div>
         </section>
 
-        <section class="preview-section" id="previewSection" style="display: none;">
+        <section class="preview-section" id="previewSection">
             <h3 data-i18n="preview_title">原图预览</h3>
             <div class="image-preview">
-                <img id="previewImage" alt="预览图片">
+                <img id="previewImage" alt="预览图片" style="display: none;">
+                <div id="placeholderPreview" class="preview-placeholder">
+                    <div class="placeholder-content">
+                        <div class="placeholder-icon">🖼️</div>
+                        <p data-i18n="no_image_selected">请先上传图片</p>
+                    </div>
+                </div>
             </div>
             <div class="options">
                 <div class="size-controls">
@@ -79,10 +85,20 @@
             <div class="result-controls">
                 <button id="copyButton" class="btn-secondary" data-i18n="copy_result">📋 复制结果</button>
                 <button id="downloadButton" class="btn-secondary" data-i18n="download_txt">💾 下载txt</button>
+                <button id="downloadImageButton" class="btn-secondary" data-i18n="download_image">🖼️ 下载图片</button>
                 <button id="resetButton" class="btn-secondary" data-i18n="reset">🔄 重新开始</button>
             </div>
-            <div class="ascii-result">
-                <pre id="asciiOutput"></pre>
+            <div class="result-display">
+                <div class="result-tabs">
+                    <button id="textTab" class="tab-btn active" data-i18n="text_result">文字版</button>
+                    <button id="imageTab" class="tab-btn" data-i18n="image_result">图片版</button>
+                </div>
+                <div class="ascii-result" id="textResult">
+                    <pre id="asciiOutput"></pre>
+                </div>
+                <div class="ascii-image-result" id="imageResult" style="display: none;">
+                    <canvas id="asciiCanvas"></canvas>
+                </div>
             </div>
         </section>
     </main>

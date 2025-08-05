@@ -35,7 +35,11 @@ class I18n {
                 text_recognition_failed: '--- 文字识别失败 ---',
                 image_to_ascii: '--- 图像转ASCII ---',
                 width_adjusted: '智能调整宽度',
-                image_size: '图片尺寸'
+                image_size: '图片尺寸',
+                no_image_selected: '请先上传图片',
+                download_image: '🖼️ 下载图片',
+                text_result: '文字版',
+                image_result: '图片版'
             },
             en: {
                 title: '🎨 Smart ASCII Art',
@@ -69,7 +73,11 @@ class I18n {
                 text_recognition_failed: '--- Text Recognition Failed ---',
                 image_to_ascii: '--- Image to ASCII ---',
                 width_adjusted: 'Width Auto-Adjusted',
-                image_size: 'Image Size'
+                image_size: 'Image Size',
+                no_image_selected: 'Please upload an image first',
+                download_image: '🖼️ Download Image',
+                text_result: 'Text Version',
+                image_result: 'Image Version'
             },
             ja: {
                 title: '🎨 スマートASCIIアート',
@@ -103,7 +111,11 @@ class I18n {
                 text_recognition_failed: '--- テキスト認識に失敗しました ---',
                 image_to_ascii: '--- 画像からASCIIへ ---',
                 width_adjusted: '幅を自動調整',
-                image_size: '画像サイズ'
+                image_size: '画像サイズ',
+                no_image_selected: 'まず画像をアップロードしてください',
+                download_image: '🖼️ 画像をダウンロード',
+                text_result: 'テキスト版',
+                image_result: '画像版'
             }
         };
     }
@@ -154,6 +166,13 @@ class OutlineASCIIConverter {
         this.copyButton = document.getElementById('copyButton');
         this.downloadButton = document.getElementById('downloadButton');
         this.resetButton = document.getElementById('resetButton');
+        this.downloadImageButton = document.getElementById('downloadImageButton');
+        this.textTab = document.getElementById('textTab');
+        this.imageTab = document.getElementById('imageTab');
+        this.textResult = document.getElementById('textResult');
+        this.imageResult = document.getElementById('imageResult');
+        this.asciiCanvas = document.getElementById('asciiCanvas');
+        this.placeholderPreview = document.getElementById('placeholderPreview');
         
         // 新的控制元素
         this.asciiWidth = document.getElementById('asciiWidth');
@@ -183,7 +202,12 @@ class OutlineASCIIConverter {
         // 控制按钮
         this.copyButton.addEventListener('click', () => this.copyResult());
         this.downloadButton.addEventListener('click', () => this.downloadResult());
+        this.downloadImageButton.addEventListener('click', () => this.downloadImageResult());
         this.resetButton.addEventListener('click', () => this.reset());
+        
+        // Tab切换
+        this.textTab.addEventListener('click', () => this.switchTab('text'));
+        this.imageTab.addEventListener('click', () => this.switchTab('image'));
 
         // 控制滑块
         this.asciiWidth.addEventListener('input', (e) => {
@@ -254,11 +278,22 @@ class OutlineASCIIConverter {
 
     showPreview(imageSrc) {
         this.previewImage.src = imageSrc;
-        this.previewSection.style.display = 'block';
+        this.previewImage.style.display = 'block';
+        this.placeholderPreview.style.display = 'none';
         this.resultSection.style.display = 'none';
         
         // 根据图片大小智能调整ASCII宽度
         this.adjustASCIIWidthByImageSize();
+        
+        // 自动开始转换ASCII
+        this.autoConvertToASCII();
+    }
+
+    async autoConvertToASCII() {
+        // 延迟一秒后自动开始转换，让用户看到调整提示
+        setTimeout(async () => {
+            await this.convertToASCII();
+        }, 1000);
     }
 
     adjustASCIIWidthByImageSize() {
@@ -708,8 +743,67 @@ class OutlineASCIIConverter {
 
     showResult(asciiArt) {
         this.asciiOutput.textContent = asciiArt;
+        
+        // 生成ASCII图片版本
+        this.generateASCIIImage(asciiArt);
+        
         this.hideLoading();
         this.resultSection.style.display = 'block';
+    }
+
+    generateASCIIImage(asciiText) {
+        const canvas = this.asciiCanvas;
+        const ctx = canvas.getContext('2d');
+        
+        // 设置字体和样式
+        const fontSize = 8;
+        const lineHeight = fontSize * 1.1;
+        ctx.font = `${fontSize}px "Courier New", monospace`;
+        ctx.textBaseline = 'top';
+        
+        // 计算画布尺寸
+        const lines = asciiText.split('\n');
+        const maxLineLength = Math.max(...lines.map(line => line.length));
+        const canvasWidth = maxLineLength * fontSize * 0.6; // 字符宽度约为字体大小的0.6倍
+        const canvasHeight = lines.length * lineHeight;
+        
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        
+        // 设置背景色为白色
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 设置文字颜色为黑色
+        ctx.fillStyle = '#000000';
+        
+        // 绘制ASCII文字
+        lines.forEach((line, index) => {
+            const y = index * lineHeight;
+            ctx.fillText(line, 0, y);
+        });
+    }
+
+    switchTab(tabType) {
+        if (tabType === 'text') {
+            this.textTab.classList.add('active');
+            this.imageTab.classList.remove('active');
+            this.textResult.style.display = 'block';
+            this.imageResult.style.display = 'none';
+        } else {
+            this.imageTab.classList.add('active');
+            this.textTab.classList.remove('active');
+            this.textResult.style.display = 'none';
+            this.imageResult.style.display = 'block';
+        }
+    }
+
+    downloadImageResult() {
+        const canvas = this.asciiCanvas;
+        const link = document.createElement('a');
+        link.download = 'ascii-art.png';
+        link.href = canvas.toDataURL();
+        link.click();
     }
 
     copyResult() {
@@ -763,15 +857,25 @@ class OutlineASCIIConverter {
     }
 
     reset() {
-        // 只重置结果区域，保留图片预览
+        // 完全重置到初始状态
+        this.currentImage = null;
+        this.imageInput.value = '';
+        this.previewImage.style.display = 'none';
+        this.placeholderPreview.style.display = 'block';
         this.loadingSection.style.display = 'none';
         this.resultSection.style.display = 'none';
         this.asciiOutput.textContent = '';
         
-        // 如果有图片，保持预览状态可见
-        if (this.currentImage) {
-            this.previewSection.style.display = 'block';
-        }
+        // 重置到默认参数
+        this.asciiWidth.value = 120;
+        this.widthValue.textContent = '120';
+        this.edgeThreshold.value = 100;
+        this.thresholdValue.textContent = '100';
+        this.noiseReduction.value = 3;
+        this.noiseValue.textContent = '3';
+        
+        // 切换回文字版tab
+        this.switchTab('text');
     }
 }
 
