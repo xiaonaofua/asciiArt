@@ -1,4 +1,4 @@
-class ASCIIArtConverter {
+class OutlineASCIIConverter {
     constructor() {
         this.currentImage = null;
         this.initializeElements();
@@ -20,10 +20,15 @@ class ASCIIArtConverter {
         this.copyButton = document.getElementById('copyButton');
         this.downloadButton = document.getElementById('downloadButton');
         this.resetButton = document.getElementById('resetButton');
-        this.enableOCR = document.getElementById('enableOCR');
-        this.enableOutline = document.getElementById('enableOutline');
+        
+        // 新的控制元素
         this.asciiWidth = document.getElementById('asciiWidth');
         this.widthValue = document.getElementById('widthValue');
+        this.edgeThreshold = document.getElementById('edgeThreshold');
+        this.thresholdValue = document.getElementById('thresholdValue');
+        this.noiseReduction = document.getElementById('noiseReduction');
+        this.noiseValue = document.getElementById('noiseValue');
+        this.invertColors = document.getElementById('invertColors');
     }
 
     bindEvents() {
@@ -44,9 +49,17 @@ class ASCIIArtConverter {
         this.downloadButton.addEventListener('click', () => this.downloadResult());
         this.resetButton.addEventListener('click', () => this.reset());
 
-        // 宽度滑块
+        // 控制滑块
         this.asciiWidth.addEventListener('input', (e) => {
             this.widthValue.textContent = e.target.value;
+        });
+        
+        this.edgeThreshold.addEventListener('input', (e) => {
+            this.thresholdValue.textContent = e.target.value;
+        });
+        
+        this.noiseReduction.addEventListener('input', (e) => {
+            this.noiseValue.textContent = e.target.value;
         });
     }
 
@@ -119,33 +132,35 @@ class ASCIIArtConverter {
         if (!this.currentImage) return;
 
         try {
-            this.showLoading('正在分析图片...');
+            this.showLoading('正在分析图像轮廓...');
 
-            // 创建canvas来处理图片
+            // 创建canvas处理图片
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             
             const targetWidth = parseInt(this.asciiWidth.value);
             const aspectRatio = this.currentImage.height / this.currentImage.width;
-            const targetHeight = Math.floor(targetWidth * aspectRatio * 0.5); // ASCII字符高度比宽度大
+            const targetHeight = Math.floor(targetWidth * aspectRatio * 0.5);
 
             canvas.width = targetWidth;
             canvas.height = targetHeight;
             
             ctx.drawImage(this.currentImage, 0, 0, targetWidth, targetHeight);
             
-            let asciiResult = '';
-
-            // 如果启用OCR，先进行文字识别
-            if (this.enableOCR.checked) {
-                asciiResult += await this.performOCR(canvas);
-                asciiResult += '\n\n--- 图像转ASCII ---\n\n';
-            }
-
-            // 转换图像为ASCII
-            const imageASCII = this.imageToASCII(canvas, ctx);
-            asciiResult += imageASCII;
-
+            // 获取图像数据
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            
+            this.showLoading('正在进行边缘检测...');
+            
+            // 进行图像预处理和边缘检测
+            const processedData = this.preprocessImage(imageData);
+            const edgeData = this.detectEdges(processedData, canvas.width, canvas.height);
+            
+            this.showLoading('正在生成ASCII艺术...');
+            
+            // 转换为ASCII
+            const asciiResult = this.generateASCIIFromEdges(edgeData, canvas.width, canvas.height);
+            
             this.showResult(asciiResult);
 
         } catch (error) {
@@ -155,63 +170,219 @@ class ASCIIArtConverter {
         }
     }
 
-    async performOCR(canvas) {
-        this.showLoading('正在识别文字...');
+    preprocessImage(imageData) {
+        const data = new Uint8ClampedArray(imageData.data);
+        const width = imageData.width;
+        const height = imageData.height;
+        const noiseLevel = parseInt(this.noiseReduction.value);
         
-        try {
-            const { data: { text } } = await Tesseract.recognize(
-                canvas,
-                'chi_sim+chi_tra+jpn+eng', // 支持中文简体、繁体、日文、英文
-                {
-                    logger: m => {
-                        if (m.status === 'recognizing text') {
-                            const progress = Math.round(m.progress * 100);
-                            this.showLoading(`正在识别文字... ${progress}%`);
-                        }
-                    }
-                }
-            );
-
-            if (text.trim()) {
-                return `--- 识别的文字 ---\n${text.trim()}\n`;
-            } else {
-                return '--- 未识别到文字 ---\n';
-            }
-        } catch (error) {
-            console.error('OCR识别失败:', error);
-            return '--- 文字识别失败 ---\n';
+        // 转换为灰度图
+        for (let i = 0; i < data.length; i += 4) {
+            const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+            data[i] = gray;     // R
+            data[i + 1] = gray; // G
+            data[i + 2] = gray; // B
         }
+        
+        // 噪音过滤 - 高斯模糊
+        if (noiseLevel > 0) {
+            this.applyGaussianBlur(data, width, height, noiseLevel);
+        }
+        
+        return data;
     }
 
-    imageToASCII(canvas, ctx) {
-        this.showLoading('正在转换为ASCII...');
-
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const pixels = imageData.data;
+    applyGaussianBlur(data, width, height, radius) {
+        const output = new Uint8ClampedArray(data);
+        const kernel = this.generateGaussianKernel(radius);
+        const kernelSize = kernel.length;
+        const half = Math.floor(kernelSize / 2);
         
-        // ASCII字符集，从暗到亮
-        const asciiChars = '@%#*+=-:. ';
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                let sum = 0;
+                let weightSum = 0;
+                
+                for (let ky = -half; ky <= half; ky++) {
+                    for (let kx = -half; kx <= half; kx++) {
+                        const px = Math.max(0, Math.min(width - 1, x + kx));
+                        const py = Math.max(0, Math.min(height - 1, y + ky));
+                        const weight = kernel[ky + half][kx + half];
+                        
+                        sum += data[(py * width + px) * 4] * weight;
+                        weightSum += weight;
+                    }
+                }
+                
+                const index = (y * width + x) * 4;
+                const blurred = Math.round(sum / weightSum);
+                output[index] = blurred;
+                output[index + 1] = blurred;
+                output[index + 2] = blurred;
+            }
+        }
+        
+        data.set(output);
+    }
+
+    generateGaussianKernel(radius) {
+        const size = radius * 2 + 1;
+        const kernel = [];
+        const sigma = radius / 3;
+        const sigma2 = 2 * sigma * sigma;
+        const sqrtPi2Sigma = Math.sqrt(2 * Math.PI) * sigma;
+        
+        for (let y = 0; y < size; y++) {
+            kernel[y] = [];
+            for (let x = 0; x < size; x++) {
+                const dx = x - radius;
+                const dy = y - radius;
+                const distance2 = dx * dx + dy * dy;
+                kernel[y][x] = Math.exp(-distance2 / sigma2) / sqrtPi2Sigma;
+            }
+        }
+        
+        return kernel;
+    }
+
+    detectEdges(data, width, height) {
+        const threshold = parseInt(this.edgeThreshold.value);
+        const edges = new Uint8ClampedArray(width * height);
+        
+        // Sobel边缘检测
+        const sobelX = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]];
+        const sobelY = [[-1, -2, -1], [0, 0, 0], [1, 2, 1]];
+        
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                let gx = 0, gy = 0;
+                
+                // 应用Sobel算子
+                for (let ky = -1; ky <= 1; ky++) {
+                    for (let kx = -1; kx <= 1; kx++) {
+                        const pixel = data[((y + ky) * width + (x + kx)) * 4];
+                        gx += pixel * sobelX[ky + 1][kx + 1];
+                        gy += pixel * sobelY[ky + 1][kx + 1];
+                    }
+                }
+                
+                // 计算梯度强度
+                const magnitude = Math.sqrt(gx * gx + gy * gy);
+                edges[y * width + x] = magnitude > threshold ? 255 : 0;
+            }
+        }
+        
+        // 应用形态学操作来清理边缘
+        return this.morphologicalOperations(edges, width, height);
+    }
+
+    morphologicalOperations(edges, width, height) {
+        // 先腐蚀后膨胀，去除噪点
+        let result = this.erode(edges, width, height);
+        result = this.dilate(result, width, height);
+        return result;
+    }
+
+    erode(data, width, height) {
+        const result = new Uint8ClampedArray(width * height);
+        const kernel = [
+            [-1, -1], [-1, 0], [-1, 1],
+            [0, -1],  [0, 0],  [0, 1],
+            [1, -1],  [1, 0],  [1, 1]
+        ];
+        
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                let minVal = 255;
+                for (let [ky, kx] of kernel) {
+                    const px = x + kx;
+                    const py = y + ky;
+                    if (px >= 0 && px < width && py >= 0 && py < height) {
+                        minVal = Math.min(minVal, data[py * width + px]);
+                    }
+                }
+                result[y * width + x] = minVal;
+            }
+        }
+        
+        return result;
+    }
+
+    dilate(data, width, height) {
+        const result = new Uint8ClampedArray(width * height);
+        const kernel = [
+            [-1, -1], [-1, 0], [-1, 1],
+            [0, -1],  [0, 0],  [0, 1],
+            [1, -1],  [1, 0],  [1, 1]
+        ];
+        
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                let maxVal = 0;
+                for (let [ky, kx] of kernel) {
+                    const px = x + kx;
+                    const py = y + ky;
+                    if (px >= 0 && px < width && py >= 0 && py < height) {
+                        maxVal = Math.max(maxVal, data[py * width + px]);
+                    }
+                }
+                result[y * width + x] = maxVal;
+            }
+        }
+        
+        return result;
+    }
+
+    generateASCIIFromEdges(edgeData, width, height) {
+        // 不同强度的ASCII字符集
+        const edgeChars = '█▉▊▋▌▍▎▏';  // 块状字符表示强边缘
+        const fillChars = '@%#*+=-:. '; // 填充字符表示内部区域
+        const invert = this.invertColors.checked;
         
         let ascii = '';
         
-        for (let y = 0; y < canvas.height; y++) {
-            for (let x = 0; x < canvas.width; x++) {
-                const i = (y * canvas.width + x) * 4;
-                const r = pixels[i];
-                const g = pixels[i + 1];
-                const b = pixels[i + 2];
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const edgeStrength = edgeData[y * width + x];
+                let char;
                 
-                // 计算灰度值
-                const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+                if (edgeStrength > 128) {
+                    // 强边缘区域 - 使用块状字符
+                    const charIndex = Math.floor((edgeStrength / 255) * (edgeChars.length - 1));
+                    char = edgeChars[invert ? edgeChars.length - 1 - charIndex : charIndex];
+                } else {
+                    // 内部区域 - 根据周围边缘密度选择填充字符
+                    const density = this.calculateLocalDensity(edgeData, x, y, width, height);
+                    const charIndex = Math.floor(density * (fillChars.length - 1));
+                    char = fillChars[invert ? fillChars.length - 1 - charIndex : charIndex];
+                }
                 
-                // 将灰度值映射到ASCII字符
-                const charIndex = Math.floor((gray / 255) * (asciiChars.length - 1));
-                ascii += asciiChars[charIndex];
+                ascii += char;
             }
             ascii += '\n';
         }
         
         return ascii;
+    }
+
+    calculateLocalDensity(edgeData, x, y, width, height) {
+        let sum = 0;
+        let count = 0;
+        const radius = 2;
+        
+        for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+                const px = x + dx;
+                const py = y + dy;
+                
+                if (px >= 0 && px < width && py >= 0 && py < height) {
+                    sum += edgeData[py * width + px];
+                    count++;
+                }
+            }
+        }
+        
+        return count > 0 ? (sum / count) / 255 : 0;
     }
 
     showResult(asciiArt) {
@@ -226,7 +397,6 @@ class ASCIIArtConverter {
             this.showCopySuccess();
         }).catch(err => {
             console.error('复制失败:', err);
-            // 降级方案
             this.fallbackCopy(text);
         });
     }
@@ -263,7 +433,7 @@ class ASCIIArtConverter {
         
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'ascii-art.txt';
+        a.download = 'outline-ascii-art.txt';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -283,7 +453,7 @@ class ASCIIArtConverter {
 
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', () => {
-    new ASCIIArtConverter();
+    new OutlineASCIIConverter();
 });
 
 // 防止页面意外关闭时丢失进度

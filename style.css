@@ -121,10 +121,9 @@ section {
 
 /* 选项控制样式 */
 .options {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 20px;
-    align-items: center;
     margin: 20px 0;
     padding: 20px;
     background: #f8f9fa;
@@ -136,22 +135,33 @@ section {
     align-items: center;
     gap: 8px;
     font-weight: 500;
+    justify-self: center;
 }
 
 .size-controls {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    min-width: 180px;
+}
+
+.size-controls label {
+    font-size: 0.9em;
+    color: #555;
+    margin-bottom: 5px;
 }
 
 .size-controls input[type="range"] {
     width: 150px;
+    margin: 5px 0;
 }
 
 .size-controls span {
     min-width: 30px;
     font-weight: bold;
     color: #667eea;
+    font-size: 1.1em;
 }
 
 /* 加载动画样式 */
@@ -239,12 +249,13 @@ footer {
     }
     
     .options {
-        flex-direction: column;
-        align-items: stretch;
+        grid-template-columns: 1fr;
+        gap: 15px;
     }
     
     .size-controls {
-        justify-content: space-between;
+        min-width: auto;
+        width: 100%;
     }
     
     .result-controls {

@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>图片转ASCII艺术 - Image to ASCII Art</title>
+    <title>轮廓ASCII艺术 - Outline ASCII Art</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
-        <h1>🎨 图片转ASCII艺术</h1>
-        <p>将PNG/JPEG图片转换为ASCII艺术文字</p>
+        <h1>🎨 轮廓ASCII艺术</h1>
+        <p>基于图像轮廓生成ASCII艺术</p>
     </header>
 
     <main class="container">
@@ -31,19 +31,25 @@
                 <img id="previewImage" alt="预览图片">
             </div>
             <div class="options">
-                <label>
-                    <input type="checkbox" id="enableOCR" checked>
-                    启用文字识别 (OCR)
-                </label>
-                <label>
-                    <input type="checkbox" id="enableOutline" checked>
-                    启用轮廓检测
-                </label>
                 <div class="size-controls">
                     <label for="asciiWidth">ASCII宽度:</label>
                     <input type="range" id="asciiWidth" min="40" max="120" value="80">
                     <span id="widthValue">80</span>
                 </div>
+                <div class="size-controls">
+                    <label for="edgeThreshold">边缘敏感度:</label>
+                    <input type="range" id="edgeThreshold" min="50" max="200" value="100">
+                    <span id="thresholdValue">100</span>
+                </div>
+                <div class="size-controls">
+                    <label for="noiseReduction">噪音过滤:</label>
+                    <input type="range" id="noiseReduction" min="0" max="10" value="3">
+                    <span id="noiseValue">3</span>
+                </div>
+                <label>
+                    <input type="checkbox" id="invertColors">
+                    反转颜色
+                </label>
             </div>
             <button id="convertButton" class="btn-primary">转换为ASCII</button>
         </section>
@@ -69,11 +75,9 @@
     </main>
 
     <footer>
-        <p>支持中文、日文、英文文字识别 | 基于Web技术实现</p>
+        <p>基于图像轮廓的ASCII艺术生成器 | 纯前端实现</p>
     </footer>
 
-    <!-- 引入依赖库 -->
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
