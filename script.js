@@ -29,6 +29,7 @@ class OutlineASCIIConverter {
         this.noiseReduction = document.getElementById('noiseReduction');
         this.noiseValue = document.getElementById('noiseValue');
         this.invertColors = document.getElementById('invertColors');
+        this.enableOCR = document.getElementById('enableOCR');
         this.autoOptimize = document.getElementById('autoOptimize');
     }
 
@@ -166,10 +167,21 @@ class OutlineASCIIConverter {
                 this.noiseValue.textContent = bestParams.noiseReduction;
             }
             
+            let asciiResult = '';
+
+            // 如果启用OCR，先进行文字识别
+            if (this.enableOCR.checked) {
+                this.showLoading('正在识别文字...');
+                const ocrResult = await this.performOCR(canvas);
+                asciiResult += ocrResult;
+                asciiResult += '\n--- 图像转ASCII ---\n\n';
+            }
+
             this.showLoading('正在生成ASCII艺术...');
             
-            // 使用最佳参数生成ASCII
-            const asciiResult = this.generateOptimizedASCII(imageData, canvas.width, canvas.height, bestParams);
+            // 使用原始算法生成图像ASCII（更接近原图）
+            const imageASCII = this.generateOriginalStyleASCII(imageData, canvas.width, canvas.height, bestParams);
+            asciiResult += imageASCII;
             
             this.showResult(asciiResult);
 
@@ -411,6 +423,74 @@ class OutlineASCIIConverter {
                 }
                 
                 ascii += char;
+            }
+            ascii += '\n';
+        }
+        
+        return ascii;
+    }
+
+    // OCR文字识别功能
+    async performOCR(canvas) {
+        try {
+            const { data: { text } } = await Tesseract.recognize(
+                canvas,
+                'chi_sim+chi_tra+jpn+eng', // 支持中文简体、繁体、日文、英文
+                {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            const progress = Math.round(m.progress * 100);
+                            this.showLoading(`正在识别文字... ${progress}%`);
+                        }
+                    }
+                }
+            );
+
+            if (text.trim()) {
+                return `--- 识别的文字 ---\n${text.trim()}\n`;
+            } else {
+                return '--- 未识别到文字 ---\n';
+            }
+        } catch (error) {
+            console.error('OCR识别失败:', error);
+            return '--- 文字识别失败 ---\n';
+        }
+    }
+
+    // 原始风格的ASCII转换算法（更接近原图）
+    generateOriginalStyleASCII(imageData, width, height, params) {
+        const data = new Uint8ClampedArray(imageData.data);
+        
+        // 预处理图像
+        const processedData = this.preprocessImageWithParams(data, width, height, params.noiseReduction);
+        
+        // 使用原始的基于灰度的字符映射方法
+        return this.imageToASCIIOriginal(processedData, width, height);
+    }
+
+    // 原始的图像转ASCII算法
+    imageToASCIIOriginal(data, width, height) {
+        // 使用原始的ASCII字符集，从暗到亮，效果更接近原图
+        const asciiChars = '@%#*+=-:. ';
+        const invert = this.invertColors.checked;
+        
+        let ascii = '';
+        
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const i = (y * width + x) * 4;
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                
+                // 计算灰度值
+                const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+                
+                // 将灰度值映射到ASCII字符
+                const charIndex = Math.floor((gray / 255) * (asciiChars.length - 1));
+                const selectedChar = asciiChars[invert ? asciiChars.length - 1 - charIndex : charIndex];
+                
+                ascii += selectedChar;
             }
             ascii += '\n';
         }
