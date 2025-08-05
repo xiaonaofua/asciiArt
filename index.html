@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片转ASCII艺术 - Image to ASCII Art</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>🎨 图片转ASCII艺术</h1>
+        <p>将PNG/JPEG图片转换为ASCII艺术文字</p>
+    </header>
+
+    <main class="container">
+        <section class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-content">
+                    <div class="upload-icon">📁</div>
+                    <h3>选择或拖拽图片</h3>
+                    <p>支持PNG、JPEG格式</p>
+                    <input type="file" id="imageInput" accept="image/png,image/jpeg,image/jpg" hidden>
+                    <button type="button" id="selectButton" class="btn-primary">选择图片</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="preview-section" id="previewSection" style="display: none;">
+            <h3>原图预览</h3>
+            <div class="image-preview">
+                <img id="previewImage" alt="预览图片">
+            </div>
+            <div class="options">
+                <label>
+                    <input type="checkbox" id="enableOCR" checked>
+                    启用文字识别 (OCR)
+                </label>
+                <label>
+                    <input type="checkbox" id="enableOutline" checked>
+                    启用轮廓检测
+                </label>
+                <div class="size-controls">
+                    <label for="asciiWidth">ASCII宽度:</label>
+                    <input type="range" id="asciiWidth" min="40" max="120" value="80">
+                    <span id="widthValue">80</span>
+                </div>
+            </div>
+            <button id="convertButton" class="btn-primary">转换为ASCII</button>
+        </section>
+
+        <section class="loading-section" id="loadingSection" style="display: none;">
+            <div class="loader">
+                <div class="spinner"></div>
+                <p id="loadingText">正在处理图片...</p>
+            </div>
+        </section>
+
+        <section class="result-section" id="resultSection" style="display: none;">
+            <h3>ASCII艺术结果</h3>
+            <div class="result-controls">
+                <button id="copyButton" class="btn-secondary">📋 复制结果</button>
+                <button id="downloadButton" class="btn-secondary">💾 下载txt</button>
+                <button id="resetButton" class="btn-secondary">🔄 重新开始</button>
+            </div>
+            <div class="ascii-result">
+                <pre id="asciiOutput"></pre>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>支持中文、日文、英文文字识别 | 基于Web技术实现</p>
+    </footer>
+
+    <!-- 引入依赖库 -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
