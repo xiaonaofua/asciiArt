@@ -1,9 +1,15 @@
 @echo off
+chcp 65001 > nul
 echo Starting ASCII Art project deployment...
 echo.
 
 echo Checking git status...
 git status
+echo.
+
+echo Getting current branch name...
+for /f "tokens=*" %%i in ('git branch --show-current') do set CURRENT_BRANCH=%%i
+echo Current branch: %CURRENT_BRANCH%
 echo.
 
 echo Adding files to git...
@@ -14,21 +20,37 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo Committing changes...
-git commit -m "🚀 Quick update: Auto deployment via batch script"
+echo Checking if there are changes to commit...
+git diff --cached --quiet
 if errorlevel 1 (
-    echo Commit failed or no changes to commit!
+    echo Committing changes...
+    git commit -m "Quick update: Auto deployment via batch script"
+    if errorlevel 1 (
+        echo Commit failed!
+        pause
+        exit /b 1
+    )
     echo.
-    echo This might be normal if there are no changes.
+    echo Pushing to GitHub...
+    git push
+    if errorlevel 1 (
+        echo Push failed! Trying with origin %CURRENT_BRANCH%...
+        git push origin %CURRENT_BRANCH%
+        if errorlevel 1 (
+            echo Push failed!
+            echo.
+            echo Please check:
+            echo 1. Internet connection
+            echo 2. GitHub credentials
+            echo 3. Repository permissions
+            echo 4. Branch permissions for %CURRENT_BRANCH%
+            pause
+            exit /b 1
+        )
+    )
+) else (
+    echo No changes to commit. Everything is up to date!
     echo.
-)
-
-echo Pushing to GitHub...
-git push origin master
-if errorlevel 1 (
-    echo Push failed!
-    pause
-    exit /b 1
 )
 
 echo.
@@ -42,6 +64,6 @@ echo.
 echo Website will be updated at:
 echo https://xiaonaofua.github.io/asciiArt/
 echo.
-echo (GitHub Pages may take a few minutes to update)
+echo GitHub Pages may take a few minutes to update
 echo.
 pause
