@@ -8,8 +8,13 @@
 </head>
 <body>
     <header>
-        <h1>🎨 轮廓ASCII艺术</h1>
-        <p>基于图像轮廓生成ASCII艺术</p>
+        <div class="language-switcher">
+            <button id="langZh" class="lang-btn active">中文</button>
+            <button id="langEn" class="lang-btn">English</button>
+            <button id="langJa" class="lang-btn">日本語</button>
+        </div>
+        <h1 data-i18n="title">🎨 智能ASCII艺术</h1>
+        <p data-i18n="subtitle">智能ASCII艺术生成器 - 支持文字识别与图像轮廓</p>
     </header>
 
     <main class="container">
@@ -17,64 +22,64 @@
             <div class="upload-area" id="uploadArea">
                 <div class="upload-content">
                     <div class="upload-icon">📁</div>
-                    <h3>选择或拖拽图片</h3>
-                    <p>支持PNG、JPEG格式</p>
+                    <h3 data-i18n="upload_title">选择或拖拽图片</h3>
+                    <p data-i18n="upload_desc">支持PNG、JPEG格式</p>
                     <input type="file" id="imageInput" accept="image/png,image/jpeg,image/jpg" hidden>
-                    <button type="button" id="selectButton" class="btn-primary">选择图片</button>
+                    <button type="button" id="selectButton" class="btn-primary" data-i18n="select_image">选择图片</button>
                 </div>
             </div>
         </section>
 
         <section class="preview-section" id="previewSection" style="display: none;">
-            <h3>原图预览</h3>
+            <h3 data-i18n="preview_title">原图预览</h3>
             <div class="image-preview">
                 <img id="previewImage" alt="预览图片">
             </div>
             <div class="options">
                 <div class="size-controls">
-                    <label for="asciiWidth">ASCII宽度:</label>
+                    <label for="asciiWidth" data-i18n="ascii_width">ASCII宽度:</label>
                     <input type="range" id="asciiWidth" min="40" max="120" value="80">
                     <span id="widthValue">80</span>
                 </div>
                 <div class="size-controls">
-                    <label for="edgeThreshold">边缘敏感度:</label>
+                    <label for="edgeThreshold" data-i18n="edge_sensitivity">边缘敏感度:</label>
                     <input type="range" id="edgeThreshold" min="50" max="200" value="100">
                     <span id="thresholdValue">100</span>
                 </div>
                 <div class="size-controls">
-                    <label for="noiseReduction">噪音过滤:</label>
+                    <label for="noiseReduction" data-i18n="noise_filter">噪音过滤:</label>
                     <input type="range" id="noiseReduction" min="0" max="10" value="3">
                     <span id="noiseValue">3</span>
                 </div>
                 <label>
                     <input type="checkbox" id="invertColors">
-                    反转颜色
+                    <span data-i18n="invert_colors">反转颜色</span>
                 </label>
                 <label>
                     <input type="checkbox" id="enableOCR">
-                    启用文字识别 (OCR)
+                    <span data-i18n="enable_ocr">启用文字识别 (OCR)</span>
                 </label>
                 <label>
                     <input type="checkbox" id="autoOptimize" checked>
-                    自动优化参数
+                    <span data-i18n="auto_optimize">自动优化参数</span>
                 </label>
             </div>
-            <button id="convertButton" class="btn-primary">🎯 智能转换ASCII</button>
+            <button id="convertButton" class="btn-primary" data-i18n="convert_button">🎯 智能转换ASCII</button>
         </section>
 
         <section class="loading-section" id="loadingSection" style="display: none;">
             <div class="loader">
                 <div class="spinner"></div>
-                <p id="loadingText">正在处理图片...</p>
+                <p id="loadingText" data-i18n="processing">正在处理图片...</p>
             </div>
         </section>
 
         <section class="result-section" id="resultSection" style="display: none;">
-            <h3>ASCII艺术结果</h3>
+            <h3 data-i18n="result_title">ASCII艺术结果</h3>
             <div class="result-controls">
-                <button id="copyButton" class="btn-secondary">📋 复制结果</button>
-                <button id="downloadButton" class="btn-secondary">💾 下载txt</button>
-                <button id="resetButton" class="btn-secondary">🔄 重新开始</button>
+                <button id="copyButton" class="btn-secondary" data-i18n="copy_result">📋 复制结果</button>
+                <button id="downloadButton" class="btn-secondary" data-i18n="download_txt">💾 下载txt</button>
+                <button id="resetButton" class="btn-secondary" data-i18n="reset">🔄 重新开始</button>
             </div>
             <div class="ascii-result">
                 <pre id="asciiOutput"></pre>
@@ -83,7 +88,7 @@
     </main>
 
     <footer>
-        <p>智能ASCII艺术生成器 - 支持文字识别与图像轮廓 | 纯前端实现</p>
+        <p data-i18n="footer">智能ASCII艺术生成器 - 支持文字识别与图像轮廓 | 纯前端实现</p>
     </footer>
 
     <!-- 引入OCR依赖库 -->
