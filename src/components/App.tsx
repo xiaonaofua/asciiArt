@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { useI18n, Language } from '../hooks/useI18n';
+import { useI18n } from '../hooks/useI18n';
 import { useASCIIConverter, ConversionParams } from '../hooks/useASCIIConverter';
 import '../styles/App.css';
 
@@ -8,7 +8,6 @@ type TabType = 'text' | 'image';
 function App() {
   const { currentLang, t, setLanguage } = useI18n();
   const {
-    currentImage,
     setCurrentImage,
     isLoading,
     loadingMessage,
@@ -27,7 +26,6 @@ function App() {
   const [edgeThreshold, setEdgeThreshold] = useState(80);
   const [noiseReduction, setNoiseReduction] = useState(3);
   const [invertColors, setInvertColors] = useState(false);
-  const [enableOCR, setEnableOCR] = useState(false);
   const [autoOptimize, setAutoOptimize] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
