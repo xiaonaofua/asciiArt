@@ -8,7 +8,6 @@ type TabType = 'text' | 'image';
 function App() {
   const { currentLang, t, setLanguage } = useI18n();
   const {
-    setCurrentImage,
     isLoading,
     loadingMessage,
     convertToASCII,
@@ -21,6 +20,7 @@ function App() {
   const [asciiImageSrc, setAsciiImageSrc] = useState<string>('');
   const [activeTab, setActiveTab] = useState<TabType>('text');
   const [showResult, setShowResult] = useState(false);
+  const [currentImage, setCurrentImageState] = useState<HTMLImageElement | null>(null);
 
   const [asciiWidth, setAsciiWidth] = useState(80);
   const [edgeThreshold, setEdgeThreshold] = useState(80);
@@ -41,7 +41,7 @@ function App() {
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        setCurrentImage(img);
+        setCurrentImageState(img);
         setPreviewSrc(e.target?.result as string);
         setShowResult(false);
 
@@ -57,7 +57,7 @@ function App() {
       img.src = e.target?.result as string;
     };
     reader.readAsDataURL(file);
-  }, [t, setCurrentImage, calculateOptimalWidth]);
+  }, [t, calculateOptimalWidth]);
 
   const showWidthNotice = (width: number, height: number, suggestedWidth: number) => {
     const notice = document.createElement('div');
